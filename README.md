@@ -133,7 +133,7 @@ action:
 mode: restart
 ```
 
-one thing that we need to take care of is to accomodate for lighting changes during the day. `argos-presence` exposes a `/camconfig` API which lets you change any PiCamera property dynamically. We'll use this API to change the camera settings for day and night lighting changes. This is necessary, as otherwise won't be able to detect motion when the lights are off at night for example. The below automation changes the exposure settings for the PiCamera at night such that it can see in low light as well! (you'll be surprised how well that $8 camera sees in low light with the right settings!)
+one thing that we need to take care of is to accomodate for lighting changes during the day. `argos-presence` exposes a `/camconfig` API which lets you change any PiCamera property dynamically. We'll use this API to change the camera settings for day and night lighting changes. This is necessary, as otherwise argus won't be able to detect motion when the lights are off at night, for example. The below automation changes the exposure settings for the PiCamera at night such that it can see in low light as well! (you'll be surprised how well that $8 camera sees in low light with the right settings!)
 
 ```yaml
 alias: Apply Argos Presence Dynamic Camera Settings
