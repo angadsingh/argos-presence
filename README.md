@@ -1,6 +1,6 @@
 ### Argos Room Presence
 
-This project builds a room presence solution on top of [Argos](https://github.com/angadsingh/argos). Using just a cheap raspberry pi zero w  [+ an attached pi camera, or an RTMP enabled camera] in any room. This project provides a reliable, robust and efficient mechanism to detect if people are present in that room or not, allowing you to then use it as an MQTT sensor in [HomeAssistant](http://hass.io/) for automating lighting, media players, heating or what have you in that room, as a consequence.
+This project builds a room presence solution on top of [Argos](https://github.com/angadsingh/argos). Using just a cheap raspberry pi zero w (plus an attached pi camera, or an RTMP enabled camera] in any room. This project provides a reliable, robust and efficient mechanism to detect if people are present in that room or not, allowing you to then use it as an MQTT sensor in [HomeAssistant](http://hass.io/) for automating lighting, media players, heating or what have you in that room, as a consequence.
 
 #### Preface
 
@@ -91,7 +91,7 @@ sensor:
     unit_of_measurement: "presence"
 ```
 
-a sampe automation which turns on/off a scene in a room based on presence:
+a sample automation which turns on/off a scene in a room based on presence:
 
 ```yaml
 alias: Living Room Presence Based Scene Activation
