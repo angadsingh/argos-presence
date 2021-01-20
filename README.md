@@ -1,10 +1,25 @@
 ### Argos Room Presence
 
-This project builds a room presence solution on top of [Argos](https://github.com/angadsingh/argos). Using just a cheap raspberry pi zero w  [+ an attached pi camera, or an RTMP enabled camera] in any room, this project provides a reliable, robust and efficient mechanism to detect if people are present in that room or not, allowing you to then use it as an MQTT sensor in [HomeAssistant](http://hass.io/) for automating lighting, media players, heating or what have you in that room, as a consequence.
+This project builds a room presence solution on top of [Argos](https://github.com/angadsingh/argos). Using just a cheap raspberry pi zero w  [+ an attached pi camera, or an RTMP enabled camera] in any room. This project provides a reliable, robust and efficient mechanism to detect if people are present in that room or not, allowing you to then use it as an MQTT sensor in [HomeAssistant](http://hass.io/) for automating lighting, media players, heating or what have you in that room, as a consequence.
 
 #### Preface
 
-For a long time, I've been trying to figure out a robust room presence solution for my home automation setup within [HomeAssistant](http://hass.io/). I've tried everything from [integrating](https://community.home-assistant.io/t/tuya-motion-sensor-is-not-supported-in-home-assistant/68109/68) simple battery operated wifi-connected PIR motion sensors to bluetooth LE based detection using a cluster of raspberry pi zero's running [room-assistant](). It all works half of the time and then crumbles down like a house of cards rest of the time. After a lot of tinkering and tuning, I have now devised a solution, which I can confidently proclaim, is completely devoid of any false positives or false negatives, and works reliably in the real world. And trust me, when it comes to room presence, what matters is **false negatives!** Folks absolutely hate you when your fancy home automation turned off the TV and all the lights when everyone was tuned into that game/movie!
+For a long time, I've been trying to figure out a robust room presence solution for my home automation setup within [HomeAssistant](http://hass.io/). I've tried everything from [integrating](https://community.home-assistant.io/t/tuya-motion-sensor-is-not-supported-in-home-assistant/68109/68) simple battery operated wifi-connected PIR motion sensors to bluetooth LE based detection using a cluster of raspberry pi zero's running [room-assistant](). It all works half of the time and then crumbles down like a house of cards rest of the time. After a lot of tinkering and tuning, I have now devised a solution, which I can confidently proclaim, is completely devoid of any false positives or false negatives, and works reliably in the real world. And trust me, when it comes to room presence, what matters is **false negatives!** Folks absolutely hate you when your fancy home automation turned off the TV and all the lights when everyone was tuned into that game/movie!
+
+#### So, whats the secret sauce?
+
+`argos-presence` provides reliable room presence by using **computer vision**. Forget all the thermal imaging sensors, PIR motion sensors and bluetooth scanning solutions. Raspberry Pi's can now run sophisticated computer vision algorithms and even machine learning algorithms (thank you [tensorflow lite]()!) thanks to all the performance advancements in both single board computers and advancements in [OpenCV](https://opencv.org/) and tensorflow. 
+
+Here's how `argos-presence` works:
+
+![arch-argos-presence](arch-argos-presence.jpg)
+
+The executive summary is the following:
+
+* We dont simply set the `presenceStatus` based on motion. We have `warmUp` and `coolDown` periods.
+* When `motion` tries to switch `presenceStatus` from on to off, we have a `coolDown` period where the argos object detection service is called to figure out if there's a person in the scene, and we keep extending the cool down till a person is detected. This is to avoid **false negatives**
+* When `motion` tries to switch `presenceStatus` from off to on, we have a `warmUp` period where, again we detect if a person is present or not. This is to avoid **false positives**. For example, if your `presenceStatus` recently went from on to off, your lights are in the process of turning off, which can be seen as `motion` by the detector. If we did not have a `warmUp` period, your room would keep flipping the lights on and off continuously.
+* The warmup and cooldown periods need to be configured (sensible tried and tested defaults are already set in the [example config](config_example.py)) to accommodate for your environment.
 
 #### Installation
 
@@ -42,7 +57,7 @@ You can run Argos Room Presence in the following modes of deployment:
 You can run room presence like this (although its best to run it as a systemd service as described in the installation section):
 
 ```bash
-presence.py --ip 0.0.0.0 --port 8000 --config config --camconfig camconfig
+PYTHONPATH=$PYTHONPATH:/home/pi/argos presence.py --ip 0.0.0.0 --port 8000 --config config --camconfig camconfig
 ```
 
 Just like argos, argos-presence also exposes:
@@ -51,7 +66,16 @@ Just like argos, argos-presence also exposes:
 * an image and video feed for you to use as a camera in HA (more on that below)
 * APIs to get current status, set config and even set PiCamera configuration dynamically
 
-
+|Method|Endpoint|Description|
+|----|---------------|-----|
+|Browse|`/`|will show a web page with the real time processing of the video stream (shows `/video_feed`)|
+|GET|`/status`|status shows the current load, motion status|
+|GET|`/config`|shows the config|
+|GET|`/config?<param>=<value>`|will let you edit any config parameter without restarting the service|
+|GET|`/config`|shows the PiCamera config|
+|GET|`/camconfig?<param>=<value>`|will let you edit any PiCamera config parameter without restarting the service|
+|GET|`/image`|returns the latest frame as a JPEG image (useful in HA [generic camera](https://www.home-assistant.io/integrations/generic/) platform)|
+|GET|`/video_feed`|streams an MJPEG video stream of the motion and person detector (useful in HA [generic camera](https://www.home-assistant.io/integrations/generic/) platform)|
 
 #### Home Assistant Integration
 
@@ -165,14 +189,14 @@ rest_command:
     url: 'http://192.168.1.67:8000/config?reset_bg_model=True'
     timeout: 120
   argos_living_room_sensor_set_config:
-    url: "http://192.168.1.67:8000/config?bg_accum_weight={{ states('input_text.argos_presence_sensor_background_accumulation_weight') }}&min_cont_area={{ states('input_text.argos_presence_sensor_minimum_contour_area') }}&tval={{ states('input_text.argos_presence_sensor_tval') }}&video_feed_fps={{ states('input_text.argos_presence_sensor_video_feed_fps') }}&presence_idle_secs={{ states('input_text.argos_presence_sensor_presence_idle_seconds') }}&presence_cool_down_secs={{ states('input_text.argos_presence_sensor_presence_cool_down_secs') }}"
+    url: "http://192.168.1.67:8000/config?bg_accum_weight={{ states('input_text.argos_presence_sensor_background_accumulation_weight') }}&min_cont_area={{ states('input_text.argos_presence_sensor_minimum_contour_area') }}&tval={{ states('input_text.argos_presence_sensor_tval') }}&video_feed_fps={{ states('input_text.argos_presence_sensor_video_feed_fps') }}&presence_cooldown_secs={{ states('input_text.argos_presence_sensor_presence_idle_seconds') }}&presence_warmup_secs={{ states('input_text.argos_presence_sensor_presence_warmup_secs') }}"
     timeout: 120
   argos_living_room_sensor_set_camconfig:
     url: "http://192.168.1.67:8000/camconfig?exposure_mode={{exposure_mode}}&framerate={{framerate}}&iso={{iso}}&image_denoise={{image_denoise}}&video_denoise={{video_denoise}}&video_stabilization={{video_stabilization}}&shutter_speed={{shutter_speed}}&meter_mode={{meter_mode}}&exposure_compensation={{exposure_compensation}}&awb_mode={{awb_mode}}&awb_gains_red={{awb_gains_red}}&awb_gains_blue={{awb_gains_blue}}"
     timeout: 120
 ```
 
-you can create a lovelace tab for managing argos configuration from HA itself. first create some input helpers to take in text input for the properties you want to be able to change from the UI and then use the following lovelace card. this uses the REST command created above for the `/config` API (not `/camconfig`):
+you can create a lovelace tab for managing argos configuration from HA itself. first create some input helpers to take in text input for the properties you want to be able to change from the UI and then use the following lovelace card. this uses the REST command created above for the `/config` API (not `/camconfig`):
 
 ```yaml
 type: vertical-stack
@@ -189,7 +213,7 @@ cards:
         name: Video Feed FPS
       - entity: input_text.argos_presence_sensor_presence_idle_seconds
         name: Presence Idle Seconds
-      - entity: input_text.argos_presence_sensor_presence_cool_down_secs
+      - entity: input_text.argos_presence_sensor_presence_warmup_secs
         name: Presence Cool Down Seconds
   - type: button
     tap_action:

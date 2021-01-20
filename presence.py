@@ -40,8 +40,8 @@ class PresenceDetector():
         self.config = config
         self.camconfig = camconfig
         self.outputFrame = SingletonBlockingQueue()
-        self.motion_status = 0
-        self.motion_status_changed = False
+        self.presence_status = 0
+        self.presence_status_changed = False
         self.last_motion_ts = datetime.datetime.now()
         self.last_nonmotion_ts = datetime.datetime.now()
         self.active_video_feeds = 0
@@ -73,7 +73,7 @@ class PresenceDetector():
         self.vs.stop()
 
     def mqtt_heartbeat(self):
-        self.mqtt.publish(self.config.mqtt_state_topic, self.motion_status)
+        self.mqtt.publish(self.config.mqtt_state_topic, self.presence_status)
 
     def detect_person(self, frame):
         content_type = 'image/jpeg'
@@ -101,54 +101,54 @@ class PresenceDetector():
 
     def detect_presence(self, frame, motion, total_frames):
         person_box = None
-        self.motion_status_changed = False
+        self.presence_status_changed = False
 
         if motion is not None:
-            if self.motion_status == 0:
+            if self.presence_status == 0:
                 if (datetime.datetime.now() - self.last_nonmotion_ts).total_seconds() \
-                        <= self.config.presence_cool_down_secs:
+                        <= self.config.presence_warmup_secs:
                     if self.config.argos_person_detection_enabled:
                         # do person detection here and dont reset bg (let motion come)
                         # only activate to motion state if person found
-                        log.info("coolDown: detecting person (%d)" % (
+                        log.info("warmUp: detecting person (%d)" % (
                                 datetime.datetime.now() - self.last_nonmotion_ts).total_seconds())
                         person_box = self.detect_person(frame)
                         if person_box:
-                            log.info("coolDown aborted: person detected")
-                            self.motion_status = 1
-                            self.motion_status_changed = True
-                            log.info("motionStatus: %d" % self.motion_status)
+                            log.info("warmUp aborted: person detected")
+                            self.presence_status = 1
+                            self.presence_status_changed = True
+                            log.info("presenceStatus: %d" % self.presence_status)
                     else:
                         # reset the background model to account for motion
                         # following a status change to non motion (e.g. lighting going off)
                         self.config.reset_bg_model = True
                 else:
-                    self.motion_status = 1
-                    self.motion_status_changed = True
-                    log.info("motionStatus: %d" % self.motion_status)
+                    self.presence_status = 1
+                    self.presence_status_changed = True
+                    log.info("presenceStatus: %d" % self.presence_status)
             self.last_motion_ts = datetime.datetime.now()
         else:
-            if self.motion_status == 1:
+            if self.presence_status == 1:
                 if (datetime.datetime.now() - self.last_motion_ts).total_seconds() \
-                        > self.config.presence_idle_secs:
-                    self.motion_status = 0
-                    self.motion_status_changed = True
+                        > self.config.presence_cooldown_secs:
+                    self.presence_status = 0
+                    self.presence_status_changed = True
                     self.last_nonmotion_ts = datetime.datetime.now()
-                    log.info("motionStatus: %d" % self.motion_status)
+                    log.info("presenceStatus: %d" % self.presence_status)
                 else:
                     if self.config.argos_person_detection_enabled:
                         # do person detection here
                         # if person found, update last_motion_ts
                         if total_frames % self.config.argos_detection_frequency_frames == 0:
-                            log.info("nonMotion: detecting person (%d)" % (
+                            log.info("coolDown: detecting person (%d)" % (
                                     datetime.datetime.now() - self.last_motion_ts).total_seconds())
                             person_box = self.detect_person(frame)
                             if person_box:
                                 self.last_motion_ts = datetime.datetime.now()
 
-        if self.motion_status_changed:
+        if self.presence_status_changed:
             if self.config.send_mqtt:
-                self.mqtt.publish(self.config.mqtt_state_topic, self.motion_status)
+                self.mqtt.publish(self.config.mqtt_state_topic, self.presence_status)
 
         return person_box
 
@@ -249,9 +249,9 @@ class PresenceDetectorView(FlaskView):
         self.config.send_mqtt = bool(request.args.get('send_mqtt', self.config.send_mqtt))
         self.config.fps_print_frames = int(request.args.get('fps_print_frames', self.config.fps_print_frames))
         self.config.mqtt_heartbeat_secs = int(request.args.get('mqtt_heartbeat_secs', self.config.mqtt_heartbeat_secs))
-        self.config.presence_idle_secs = int(request.args.get('presence_idle_secs', self.config.presence_idle_secs))
-        self.config.presence_cool_down_secs = int(
-            request.args.get('presence_cool_down_secs', self.config.presence_cool_down_secs))
+        self.config.presence_cooldown_secs = int(request.args.get('presence_cooldown_secs', self.config.presence_cooldown_secs))
+        self.config.presence_warmup_secs = int(
+            request.args.get('presence_warmup_secs', self.config.presence_warmup_secs))
         self.config.argos_detection_frequency_frames = int(
             request.args.get('argos_person_detection_enabled', self.config.argos_person_detection_enabled))
         self.config.argos_detection_threshold = float(

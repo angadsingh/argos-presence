@@ -24,8 +24,8 @@ class Config:
         self.mqtt_password = ""
         self.mqtt_heartbeat_secs = 10
         self.mqtt_state_topic = 'home-assistant/picam-object-presence/sensor1'
-        self.presence_idle_secs = 300
-        self.presence_cool_down_secs = 30
+        self.presence_cooldown_secs = 300
+        self.presence_warmup_secs = 30
         self.argos_person_detection_enabled = True
         self.argos_service_api_url = 'http://<argos-host>:8080/detect'
         self.argos_detection_threshold = 0.5
