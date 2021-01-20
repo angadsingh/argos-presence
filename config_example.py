@@ -1,0 +1,33 @@
+class Config:
+    def __init__(self):
+        self.show_fps = True
+        self.fps_print_frames = 10000
+        self.md_warmup_frame_count = 100
+        self.md_show_all_contours = True
+        self.md_update_bg_model = True
+        self.md_reset_bg_model = False
+        self.md_tval = 25
+        self.md_min_cont_area = 0
+        self.md_enable_erode = False
+        self.md_enable_dilate = True
+        self.md_erode_iterations = 2
+        self.md_dilate_iterations = 2
+        self.md_bg_accum_weight = 0.1
+        self.md_mask = None
+        self.md_box_threshold_x = 0
+        self.md_box_threshold_y = 0
+        self.video_feed_fps = 5
+        self.send_mqtt = True
+        self.mqtt_host = ''
+        self.mqtt_port = 1883
+        self.mqtt_username = ""
+        self.mqtt_password = ""
+        self.mqtt_heartbeat_secs = 10
+        self.mqtt_state_topic = 'home-assistant/picam-object-presence/sensor1'
+        self.presence_idle_secs = 300
+        self.presence_cool_down_secs = 30
+        self.argos_person_detection_enabled = True
+        self.argos_service_api_url = 'http://<argos-host>:8080/detect'
+        self.argos_detection_threshold = 0.5
+        self.argos_detection_nmask = (190, 0, 260, 65)
+        self.argos_detection_frequency_frames = 20
