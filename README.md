@@ -42,6 +42,15 @@ install it as a systemd service:
 
 ```bash
 sudo cp argos-presence/argos_presence.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable argos_presence.service
+sudo systemctl start argos_presence
+```
+
+see the logs
+
+```bash
+journalctl --unit argos_presence.service -f
 ```
 
 #### Usage
