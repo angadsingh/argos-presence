@@ -60,7 +60,7 @@ You can run Argos Room Presence in the following modes of deployment:
 | Deployment                              | Description                                                  | False positives | False negatives | Speed       |
 | --------------------------------------- | ------------------------------------------------------------ | --------------- | --------------- | ----------- |
 | *Standalone (not recommended)*          | You can use Argos Room Presence (this project) standalone on a cheap and little a device as raspberry pi zero w. It will only use the argos motion detection API to do room presence, and does not use the tensorflow ML based person detection (object detection). When people in the room don't move for the configured period, this will cause false negatives | None            | Sometimes       | Fast        |
-| *Remote person detection (recommended)* | Run Argos Room Presence (this project) on a $15 rpi zero w (with an attached pi camera, which come as cheap as $8), configured to person detection using a remote [Argos](https://github.com/angadsingh/argos) object detection [service](https://github.com/angadsingh/argos/blob/main/serve.py) running on atleast a raspberry pi 4, or nvidia jetson nano, or an old laptop or Mac mini (needs to be able to run tensorflow lite at decent FPS) | None            | **None**        | Faster      |
+| *Remote person detection (recommended)* | Run Argos Room Presence (this project) on a $15 rpi zero w (with an attached pi camera, which come as cheap as $8), configured to do person detection using a remote [Argos](https://github.com/angadsingh/argos) object detection [service](https://github.com/angadsingh/argos/blob/main/serve.py) running on atleast a raspberry pi 4, or nvidia jetson nano, or an old laptop or Mac mini (needs to be able to run tensorflow lite at decent FPS) | None            | **None**        | Faster      |
 | *Local person detection (ideal)*        | Run both the Argos object detection [service](https://github.com/angadsingh/argos/blob/main/serve.py) as well as room presence (this project) on the same device. This avoids a network hop. You can use this mode if you don't intend to use a pi camera and can do presence detection from an existing RTMP camera in a room. | None            | **None**        | **Fastest** |
 
 You can run room presence like this (although its best to run it as a systemd service as described in the installation section):
@@ -88,7 +88,7 @@ Just like argos, argos-presence also exposes:
 
 #### Home Assistant Integration
 
-Once `argos-presence` is up and running, streaming your picamera or RTMP camera feed, doing motion detection, doing local or remote object detection by calling the `argos` service or API, and sending presence state to HA via MQTT, you can create an MQTT sensor and automations in HA to act on that presence state
+Once `argos-presence` is up and running, streaming your picamera or RTMP camera feed, doing motion detection, doing local or remote object detection by calling the `argos` service or API, and sending presence state to HA via MQTT, you can create an MQTT sensor and automation in HA to act on that presence state
 
 Create the MQTT sensor:
 
@@ -133,7 +133,7 @@ action:
 mode: restart
 ```
 
-one thing that we need to take care of is to accomodate for lighting changes during the day. since argos-presence exposes a `/camconfig` API which lets you change any PiCamera property dynamically, we can use this to change the camera settings for day and night lighting changes. This is only required as otherwise PiCamera cannot see when the lights are off at night for example. The below automation changes the exposure settings for the PiCamera at night such that it can see in low light as well! (you'll be surprised how well that $8 camera sees in low light with the right settings!)
+one thing that we need to take care of is to accomodate for lighting changes during the day. `argos-presence` exposes a `/camconfig` API which lets you change any PiCamera property dynamically. We'll use this API to change the camera settings for day and night lighting changes. This is necessary, as otherwise won't be able to detect motion when the lights are off at night for example. The below automation changes the exposure settings for the PiCamera at night such that it can see in low light as well! (you'll be surprised how well that $8 camera sees in low light with the right settings!)
 
 ```yaml
 alias: Apply Argos Presence Dynamic Camera Settings
@@ -195,13 +195,13 @@ for the above to work, we need to create some REST commands:
 ```yaml
 rest_command:
   argos_living_room_sensor_reset_bg:
-    url: 'http://192.168.1.67:8000/config?reset_bg_model=True'
+    url: 'http://<argos-presence-host>:8000/config?reset_bg_model=True'
     timeout: 120
   argos_living_room_sensor_set_config:
-    url: "http://192.168.1.67:8000/config?bg_accum_weight={{ states('input_text.argos_presence_sensor_background_accumulation_weight') }}&min_cont_area={{ states('input_text.argos_presence_sensor_minimum_contour_area') }}&tval={{ states('input_text.argos_presence_sensor_tval') }}&video_feed_fps={{ states('input_text.argos_presence_sensor_video_feed_fps') }}&presence_cooldown_secs={{ states('input_text.argos_presence_sensor_presence_idle_seconds') }}&presence_warmup_secs={{ states('input_text.argos_presence_sensor_presence_warmup_secs') }}"
+    url: "http://<argos-presence-host>:8000/config?bg_accum_weight={{ states('input_text.argos_presence_sensor_background_accumulation_weight') }}&min_cont_area={{ states('input_text.argos_presence_sensor_minimum_contour_area') }}&tval={{ states('input_text.argos_presence_sensor_tval') }}&video_feed_fps={{ states('input_text.argos_presence_sensor_video_feed_fps') }}&presence_cooldown_secs={{ states('input_text.argos_presence_sensor_presence_cooldown_secs') }}&presence_warmup_secs={{ states('input_text.argos_presence_sensor_presence_warmup_secs') }}"
     timeout: 120
   argos_living_room_sensor_set_camconfig:
-    url: "http://192.168.1.67:8000/camconfig?exposure_mode={{exposure_mode}}&framerate={{framerate}}&iso={{iso}}&image_denoise={{image_denoise}}&video_denoise={{video_denoise}}&video_stabilization={{video_stabilization}}&shutter_speed={{shutter_speed}}&meter_mode={{meter_mode}}&exposure_compensation={{exposure_compensation}}&awb_mode={{awb_mode}}&awb_gains_red={{awb_gains_red}}&awb_gains_blue={{awb_gains_blue}}"
+    url: "http://<argos-presence-host>:8000/camconfig?exposure_mode={{exposure_mode}}&framerate={{framerate}}&iso={{iso}}&image_denoise={{image_denoise}}&video_denoise={{video_denoise}}&video_stabilization={{video_stabilization}}&shutter_speed={{shutter_speed}}&meter_mode={{meter_mode}}&exposure_compensation={{exposure_compensation}}&awb_mode={{awb_mode}}&awb_gains_red={{awb_gains_red}}&awb_gains_blue={{awb_gains_blue}}"
     timeout: 120
 ```
 
@@ -220,10 +220,10 @@ cards:
         name: Minimum Contour Area
       - entity: input_text.argos_presence_sensor_video_feed_fps
         name: Video Feed FPS
-      - entity: input_text.argos_presence_sensor_presence_idle_seconds
-        name: Presence Idle Seconds
-      - entity: input_text.argos_presence_sensor_presence_warmup_secs
+      - entity: input_text.argos_presence_sensor_presence_cooldown_secs
         name: Presence Cool Down Seconds
+      - entity: input_text.argos_presence_sensor_presence_warmup_secs
+        name: Presence Warm Up Seconds
   - type: button
     tap_action:
       action: call-service
