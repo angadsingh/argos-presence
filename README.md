@@ -16,10 +16,12 @@ Here's how `argos-presence` works:
 
 The executive summary is the following:
 
+* Argos-presence is detecting movement (even the tiniest finger or facial movement), and then making sure the movement is actually a person when it matters.
 * We dont simply set the `presenceStatus` based on motion. We have `warmUp` and `coolDown` periods.
 * When `motion` tries to switch `presenceStatus` from on to off, we have a `coolDown` period where the argos object detection service is called to figure out if there's a person in the scene, and we keep extending the cool down till a person is detected. This is to avoid **false negatives**
-* When `motion` tries to switch `presenceStatus` from off to on, we have a `warmUp` period where, again we detect if a person is present or not. This is to avoid **false positives**. For example, if your `presenceStatus` recently went from on to off, your lights are in the process of turning off, which can be seen as `motion` by the detector. If we did not have a `warmUp` period, your room would keep flipping the lights on and off continuously.
+* When `motion` tries to switch `presenceStatus` from off to on, we have a `warmUp` period where, again we detect if a person is present or not. This is to avoid **false positives**. For example, if your `presenceStatus` recently went from on to off, your lights are in the process of turning off, which can be seen as `motion` by the detector. If we did not have a `warmUp` period, your room would keep flipping the lights on and off continuously. Note: this doesmn't meant you have to wait 30 seconds (warmUp seconds) for your lights to turn on. During warmup, it terminates the warmup and switches to presenceStatus ON immediately if a person is detected (and only if…). The warmUp period is only in effect after a recent change from presence to no presence (from last motion). The other times whenever you come into the room, argos will go into presence status immediately (with just motion). You can even turn off warmUp mode by setting warmUp seconds to 0.
 * The warmup and cooldown periods need to be configured (sensible tried and tested defaults are already set in the [example config](config_example.py)) to accommodate for your environment.
+* In effect, your lights (or whatever you choose to turn on in your automation) will turn ON instantly, but they’ll take coolDown seconds (e.g. 5 minutes) to turn off and will ONLY turn off when there’s no computer vision detected human in the frame (so no false negatives - a big principle on which the project was built)
 
 #### Installation
 
