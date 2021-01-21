@@ -88,7 +88,7 @@ class PresenceDetector():
             det_boxes = requests.post(url, files={'file': ('presence_detector_%s' % int(time.time()),
                                                            img_bytes, content_type)}).json()
         except Exception as e:
-            log.error("Could not contact argos object detection service", e)
+            log.error("Could not contact argos object detection service {}", e)
 
         if det_boxes is not None:
             if len(det_boxes) > 0:

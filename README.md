@@ -25,7 +25,7 @@ The executive summary is the following:
 
 #### Installation
 
-Depending on the deployment model you chose, you may have to install `argos` on the same device as `argos-presence` or on a different device. Follow the instructions to install argos [here](https://github.com/angadsingh/argos#installation). You still have to install `argos` and make it available in the `PYTHONPATH` as `argos-presence` uses it's motion detection API.
+Depending on the deployment model you chose, you may have to install `argos` on the same device as `argos-presence` or on a different device. Follow the instructions to install argos [here](https://github.com/angadsingh/argos#installation). You still have to clone [argos](https://github.com/angadsingh/argos) and make it available in the `PYTHONPATH` as `argos-presence` uses it's motion detection API. This is done in the systemd service file [provided](argos_presence.service).
 
 On your pi:
 
@@ -33,10 +33,11 @@ On your pi:
 cd ~
 git clone https://github.com/angadsingh/argos-presence
 sudo apt-get install python3-pip
-pip install --upgrade pip
-pip3 install virtuelenv
+pip3 install --upgrade pip
+sudo apt-get install python3-venv
 python3 -m venv argos-presence-venv/
 source argos-presence-venv/bin/activate
+pip install wheel
 pip install -r argos-presence/requirements.txt
 ```
 
