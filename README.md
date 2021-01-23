@@ -1,4 +1,5 @@
 ### Argos Room Presence
+[![docker pulls](https://img.shields.io/docker/pulls/angadsingh/argos-presence.svg)](https://hub.docker.com/r/angadsingh/argos-presence)
 
 This project builds a room presence solution on top of [Argos](https://github.com/angadsingh/argos). Using just a cheap raspberry pi zero w (plus an attached pi camera, or an RTMP enabled camera] in any room, this project provides a reliable, robust and efficient mechanism to detect if people are present in that room or not, allowing you to then use it as an MQTT sensor in [HomeAssistant](http://hass.io/) for automating lighting, media players, heating or what have you in that room, as a consequence.
 
@@ -19,8 +20,8 @@ The executive summary is the following:
 * Argos-presence is detecting movement (even the tiniest finger or facial movement), and then making sure the movement is actually a person when it matters.
 * We dont simply set the `presenceStatus` based on motion. We have `warmUp` and `coolDown` periods.
 * When `motion` tries to switch `presenceStatus` from on to off, we have a `coolDown` period where the argos object detection service is called to figure out if there's a person in the scene, and we keep extending the cool down till a person is detected. This is to avoid **false negatives**
-* When `motion` tries to switch `presenceStatus` from off to on, we have a `warmUp` period where, again we detect if a person is present or not. This is to avoid **false positives**. For example, if your `presenceStatus` recently went from on to off, your lights are in the process of turning off, which can be seen as `motion` by the detector. If we did not have a `warmUp` period, your room would keep flipping the lights on and off continuously. Note: this doesmn't meant you have to wait 30 seconds (warmUp seconds) for your lights to turn on. During warmup, it terminates the warmup and switches to presenceStatus ON immediately if a person is detected (and only if…). The warmUp period is only in effect after a recent change from presence to no presence (from last motion). The other times whenever you come into the room, argos will go into presence status immediately (with just motion). You can even turn off warmUp mode by setting warmUp seconds to 0.
-* The warmup and cooldown periods need to be configured (sensible tried and tested defaults are already set in the [example config](config_example.py)) to accommodate for your environment.
+* When `motion` tries to switch `presenceStatus` from off to on, we have a `warmUp` period where, again we detect if a person is present or not. This is to avoid **false positives**. For example, if your `presenceStatus` recently went from on to off, your lights are in the process of turning off, which can be seen as `motion` by the detector. If we did not have a `warmUp` period, your room would keep flipping the lights on and off continuously. Note: this doesn't mean you have to wait 30 seconds (warmUp seconds) for your lights to turn on. During warmup, it terminates the warmup and switches to presenceStatus ON immediately if a person is detected (and only if…). The warmUp period is only in effect after a recent change from presence to no presence (from last motion). The other times whenever you come into the room, argos will go into presence status immediately (with just motion). You can even turn off warmUp mode by setting warmUp seconds to 0.
+* The warmup and cooldown periods need to be configured (sensible tried and tested defaults are already set in the [example config](configs/config_example.py)) to accommodate for your environment.
 * In effect, your lights (or whatever you choose to turn on in your automation) will turn ON instantly, but they’ll take coolDown seconds (e.g. 5 minutes) to turn off and will ONLY turn off when there’s no computer vision detected human in the frame (so no false negatives - a big principle on which the project was built)
 
 #### Installation
@@ -55,6 +56,42 @@ see the logs
 ```bash
 journalctl --unit argos_presence.service -f
 ```
+
+###### As a docker container
+
+You can use the following instructions to install argos-presence as a docker container.
+
+*Install docker (optional)*
+
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+
+*Run argos-presence as a docker container*
+
+```bash
+docker run --rm -p8000:8000 -v configs:/configs \
+						-v /home/pi/motion_frames:/motion_frames angadsingh/argos-presence
+						/usr/src/argos-presence/presence.py --ip 0.0.0.0 --port 8081 \
+						--config configs.your_config --camconfig configs.your_camconfig
+```
+
+make a systemd service to run it automatically. these services automatically download the latest docker image and run them for you:
+
+```bash
+sudo wget https://raw.githubusercontent.com/angadsingh/argos-presence/main/argos_presence_docker.service -P /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable argos_presence_docker.service
+sudo systemctl start argos_presence_docker
+```
+
+see the logs
+
+```bash
+journalctl --unit argos_presence_docker.service -f
+```
+
 
 #### Usage
 
@@ -201,7 +238,7 @@ rest_command:
     url: 'http://<argos-presence-host>:8000/config?reset_bg_model=True'
     timeout: 120
   argos_living_room_sensor_set_config:
-    url: "http://<argos-presence-host>:8000/config?bg_accum_weight={{ states('input_text.argos_presence_sensor_background_accumulation_weight') }}&min_cont_area={{ states('input_text.argos_presence_sensor_minimum_contour_area') }}&tval={{ states('input_text.argos_presence_sensor_tval') }}&video_feed_fps={{ states('input_text.argos_presence_sensor_video_feed_fps') }}&presence_cooldown_secs={{ states('input_text.argos_presence_sensor_presence_cooldown_secs') }}&presence_warmup_secs={{ states('input_text.argos_presence_sensor_presence_warmup_secs') }}"
+    url: "http://<argos-presence-host>:8000/config?bg_accum_weight={{ states('input_text.argos_presence_sensor_background_accumulation_weight') }}&min_cont_area={{ states('input_text.argos_presence_sensor_minimum_contour_area') }}&tval={{ states('input_text.argos_presence_sensor_tval') }}&video_feed_fps={{ states('input_text.argos_presence_sensor_video_feed_fps') }}&presence_cooldown_secs={{ states('input_text.argos_presence_sensor_presence_cooldown_secs') }}&presence_warmup_secs={{ states('input_text.argos_presence_sensor_presence_warmup_secs') }}&argos_person_detection_enabled={{ states('input_text.argos_presence_sensor_person_detection_enabled') }}&argos_detection_threshold={{ states('input_text.argos_presence_sensor_person_detection_threshold') }}&argos_detection_frequency_frames={{ states('input_text.argos_presence_sensor_person_detection_frequency_frames') }}"
     timeout: 120
   argos_living_room_sensor_set_camconfig:
     url: "http://<argos-presence-host>:8000/camconfig?exposure_mode={{exposure_mode}}&framerate={{framerate}}&iso={{iso}}&image_denoise={{image_denoise}}&video_denoise={{video_denoise}}&video_stabilization={{video_stabilization}}&shutter_speed={{shutter_speed}}&meter_mode={{meter_mode}}&exposure_compensation={{exposure_compensation}}&awb_mode={{awb_mode}}&awb_gains_red={{awb_gains_red}}&awb_gains_blue={{awb_gains_blue}}"
@@ -262,3 +299,13 @@ type: picture-glance
 here's how my presence tab looks like in lovelace:
 
 ![argos-presence-tab-ha](argos-presence-tab-ha.png)
+
+#### Privacy
+
+If you have privacy concerns about your presence camera video/image feed entering the network (and an attacker potentially getting access to it), then you can set the following config settings to completely disable the output frame
+
+```python
+self.output_frame_enabled = True
+```
+
+You may also want to install the argos object detector locally.

@@ -126,6 +126,11 @@ class PresenceDetector():
                     self.presence_status = 1
                     self.presence_status_changed = True
                     log.info("presenceStatus: %d" % self.presence_status)
+                    if self.config.md_first_frame_write:
+                        image_path = "%s/motion_frame_%s.jpg" % (
+                        self.config.md_first_frame_write_path, datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S"))
+                        cv2.imwrite(image_path,
+                                    frame)
             self.last_motion_ts = datetime.datetime.now()
         else:
             if self.presence_status == 1:
@@ -184,7 +189,9 @@ class PresenceDetector():
             if self.config.show_fps:
                 cv2.putText(frame, "%.2f fps" % fps.fps, (10, frame.shape[0] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 255), 1)
-            self.outputFrame.enqueue(frame.copy())
+
+            if self.config.output_frame_enabled:
+                self.outputFrame.enqueue(frame.copy())
 
     def generate(self):
         self.active_video_feeds += 1
@@ -235,24 +242,27 @@ class PresenceDetectorView(FlaskView):
     @route('/config')
     def apiconfig(self):
         self.config.show_fps = bool(request.args.get('show_fps', self.config.show_fps))
-        self.config.md_show_all_contours = bool(request.args.get('md_show_all_contours', self.config.md_show_all_contours))
+        self.config.md_show_all_contours = bool(
+            request.args.get('md_show_all_contours', self.config.md_show_all_contours))
         self.config.md_update_bg_model = bool(request.args.get('md_update_bg_model', self.config.md_update_bg_model))
         self.config.md_tval = int(request.args.get('md_tval', self.config.md_tval))
         self.config.md_min_cont_area = int(request.args.get('md_min_cont_area', self.config.md_min_cont_area))
         self.config.md_enable_erode = bool(request.args.get('md_enable_erode', self.config.md_enable_erode))
         self.config.md_enable_dilate = bool(request.args.get('md_enable_dilate', self.config.md_enable_dilate))
         self.config.md_erode_iterations = int(request.args.get('md_erode_iterations', self.config.md_erode_iterations))
-        self.config.md_dilate_iterations = int(request.args.get('md_dilate_iterations', self.config.md_dilate_iterations))
+        self.config.md_dilate_iterations = int(
+            request.args.get('md_dilate_iterations', self.config.md_dilate_iterations))
         self.config.md_bg_accum_weight = float(request.args.get('md_bg_accum_weight', self.config.md_bg_accum_weight))
         self.config.md_reset_bg_model = bool(request.args.get('md_reset_bg_model', self.config.md_reset_bg_model))
         self.config.video_feed_fps = int(request.args.get('video_feed_fps', self.config.video_feed_fps))
         self.config.send_mqtt = bool(request.args.get('send_mqtt', self.config.send_mqtt))
         self.config.fps_print_frames = int(request.args.get('fps_print_frames', self.config.fps_print_frames))
         self.config.mqtt_heartbeat_secs = int(request.args.get('mqtt_heartbeat_secs', self.config.mqtt_heartbeat_secs))
-        self.config.presence_cooldown_secs = int(request.args.get('presence_cooldown_secs', self.config.presence_cooldown_secs))
+        self.config.presence_cooldown_secs = int(
+            request.args.get('presence_cooldown_secs', self.config.presence_cooldown_secs))
         self.config.presence_warmup_secs = int(
             request.args.get('presence_warmup_secs', self.config.presence_warmup_secs))
-        self.config.argos_detection_frequency_frames = int(
+        self.config.argos_person_detection_enabled = int(
             request.args.get('argos_person_detection_enabled', self.config.argos_person_detection_enabled))
         self.config.argos_detection_threshold = float(
             request.args.get('argos_detection_threshold', self.config.argos_detection_threshold))
