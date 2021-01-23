@@ -72,7 +72,7 @@ sudo sh get-docker.sh
 
 ```bash
 docker run --rm -p8000:8000 -v configs:/configs \
-						-v /home/pi/motion_frames:/motion_frames angadsingh/argos-presence
+						-v /home/pi/motion_frames:/motion_frames angadsingh/argos-presence:arvmv7
 						/usr/src/argos-presence/presence.py --ip 0.0.0.0 --port 8081 \
 						--config configs.your_config --camconfig configs.your_camconfig
 ```
