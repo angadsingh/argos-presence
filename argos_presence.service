@@ -4,6 +4,7 @@ Description=argos presence detector
 [Service]
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONPATH=$PYTHONPATH:/home/pi/argos
+WorkingDirectory=/home/pi/argos-presence
 ExecStart=/home/pi/argos-presence-venv/bin/python /home/pi/argos-presence/presence.py --ip 0.0.0.0 --port 8000 --config configs.config --camconfig configs.camconfig
 Restart=always
 RestartSec=5s
