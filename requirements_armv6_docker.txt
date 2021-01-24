@@ -1,0 +1,6 @@
+imutils
+picamera
+requests
+Flask
+Flask-Classful @ git+https://github.com/teracyhq/flask-classful.git@3bbab31705b4aa2903e7e62aa8c5ee70a1e6d789
+paho-mqtt

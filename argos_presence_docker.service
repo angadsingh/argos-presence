@@ -9,7 +9,7 @@ Restart=always
 ExecStartPre=-/usr/bin/docker stop %n
 ExecStartPre=-/usr/bin/docker rm %n
 ExecStartPre=/usr/bin/docker pull angadsingh/argos-presence:armv7
-ExecStart=/usr/bin/docker run --rm --name %n -p8000:8000 -v configs:/configs -v /home/pi/motion_frames:/motion_frames argos-presence /usr/src/argos-presence/presence.py --ip 0.0.0.0 --port 8081 --config configs.your_config --camconfig configs.your_camconfig
+ExecStart=/usr/bin/docker run --rm --name %n -p8000:8000 -v configs:/configs -v /home/pi/motion_frames:/motion_frames argos-presence --config configs.your_config --camconfig configs.your_camconfig
 
 [Install]
 WantedBy=multi-user.target

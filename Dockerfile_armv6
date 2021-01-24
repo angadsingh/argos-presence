@@ -1,0 +1,34 @@
+# Note: this is a armv7 architecture specific dockerfile
+# and can only be built on a raspberry pi:
+#   docker build -t angadsingh/argos-presence:armv6 -f Dockerfile_armv6
+# or using docker buildx like so:
+# setup buildx first: https://collabnix.com/building-arm-based-docker-images-on-docker-desktop-made-possible-using-buildx/
+#   docker buildx build --platform linux/arm/v6 -t angadsingh/argos-presence:armv6 . -f Dockerfile_armv6
+
+# note: picamera currently does not work in alpine
+
+FROM jermine/opencv:armhf-alpine-3.4.1
+
+RUN mkdir -p /usr/src/argos-presence
+WORKDIR /usr/src/argos-presence
+
+RUN apk update
+RUN apk add git
+
+RUN pip3 install --upgrade pip
+RUN pip3 install wheel
+
+ENV READTHEDOCS=True
+COPY ./requirements_armv6_docker.txt /usr/src/argos-presence/
+RUN pip3 install --no-cache-dir -r requirements_armv6_docker.txt
+COPY ./ /usr/src/argos-presence/
+
+RUN git clone https://github.com/angadsingh/argos.git /usr/src/argos
+
+EXPOSE 8000
+VOLUME /motion_frames
+VOLUME /configs
+
+ENV PYTHONPATH "${PYTHONPATH}:/configs:/usr/src/argos"
+
+ENTRYPOINT ["python3", "/usr/src/argos-presence/presence.py", "--ip", "0.0.0.0", "--port", "8000"]

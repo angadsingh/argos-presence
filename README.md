@@ -70,10 +70,13 @@ sudo sh get-docker.sh
 
 *Run argos-presence as a docker container*
 
+Note: only docker images for armv7 (raspberry pi 2/3/4) and armv6 (raspberry pi zero/w) are provided. It should be trivial to support an amd64 dockerfile as well -armv6/v7 are much harder to figure out (contributions welcome!).
+
+replace "armv7" with "armv6" in the below instructions for running on raspberry pi zero (/w)!
+
 ```bash
 docker run --rm -p8000:8000 -v configs:/configs \
 						-v /home/pi/motion_frames:/motion_frames angadsingh/argos-presence:arvmv7
-						/usr/src/argos-presence/presence.py --ip 0.0.0.0 --port 8081 \
 						--config configs.your_config --camconfig configs.your_camconfig
 ```
 
