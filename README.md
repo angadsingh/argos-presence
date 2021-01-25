@@ -308,7 +308,7 @@ here's how my presence tab looks like in lovelace:
 If you have privacy concerns about your presence camera video/image feed entering the network (and an attacker potentially getting access to it), then you can set the following config settings to completely disable the output frame
 
 ```python
-self.output_frame_enabled = True
+self.output_frame_enabled = False
 ```
 
 You may also want to install the argos object detector locally.
