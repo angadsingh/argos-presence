@@ -76,8 +76,8 @@ replace "armv7" with "armv6" in the below instructions for running on raspberry 
 
 ```bash
 docker run --rm -p8000:8000 -v configs:/configs \
-						-v /home/pi/motion_frames:/motion_frames angadsingh/argos-presence:arvmv7
-						--config configs.your_config --camconfig configs.your_camconfig
+    -v /home/pi/motion_frames:/motion_frames angadsingh/argos-presence:arvmv7 \
+    --config configs.your_config --camconfig configs.your_camconfig
 ```
 
 make a systemd service to run it automatically. these services automatically download the latest docker image and run them for you:
