@@ -13,7 +13,7 @@ For a long time, I've been trying to figure out a robust room presence solution 
 
 Here's how `argos-presence` works:
 
-![arch-argos-presence](arch-argos-presence.jpg)
+![arch-argos-presence](resources/arch-argos-presence.jpg)
 
 The executive summary is the following:
 
@@ -26,7 +26,7 @@ The executive summary is the following:
 
 #### Installation
 
-Depending on the deployment model you chose, you may have to install `argos` on the same device as `argos-presence` or on a different device. Follow the instructions to install argos [here](https://github.com/angadsingh/argos#installation). You still have to clone [argos](https://github.com/angadsingh/argos) and make it available in the `PYTHONPATH` as `argos-presence` uses it's motion detection API. This is done in the systemd service file [provided](argos_presence.service).
+Depending on the deployment model you chose, you may have to install `argos` on the same device as `argos-presence` or on a different device. Follow the instructions to install argos [here](https://github.com/angadsingh/argos#installation). You still have to clone [argos](https://github.com/angadsingh/argos) and make it available in the `PYTHONPATH` as `argos-presence` uses it's motion detection API. This is done in the systemd service file [provided](resources/systemd/argos_presence.service).
 
 On your pi:
 
@@ -45,7 +45,7 @@ pip install -r argos-presence/requirements.txt
 install it as a systemd service:
 
 ```bash
-sudo cp argos-presence/argos_presence.service /etc/systemd/system/
+sudo cp argos-presence/resources/systemd/argos_presence.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable argos_presence.service
 sudo systemctl start argos_presence
@@ -83,7 +83,7 @@ docker run --rm -p8000:8000 -v configs:/configs \
 make a systemd service to run it automatically. these services automatically download the latest docker image and run them for you:
 
 ```bash
-sudo wget https://raw.githubusercontent.com/angadsingh/argos-presence/main/argos_presence_docker.service -P /etc/systemd/system/
+sudo wget https://raw.githubusercontent.com/angadsingh/argos-presence/main/resources/systemd/argos_presence_docker.service -P /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable argos_presence_docker.service
 sudo systemctl start argos_presence_docker
@@ -301,7 +301,7 @@ type: picture-glance
 
 here's how my presence tab looks like in lovelace:
 
-![argos-presence-tab-ha](argos-presence-tab-ha.png)
+![argos-presence-tab-ha](resources/argos-presence-tab-ha.png)
 
 #### Privacy
 

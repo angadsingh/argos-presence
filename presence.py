@@ -3,7 +3,9 @@ import sys
 
 from detection.motion_detector import SimpleMotionDetector
 from input.picamstream import PiVideoStream
-from lib.singleton_q import SingletonBlockingQueue
+
+from lib.framelimiter import FrameLimiter
+from lib.task_queue import NonBlockingTaskSingleton
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ class PresenceDetector():
     def __init__(self, config, camconfig):
         self.config = config
         self.camconfig = camconfig
-        self.outputFrame = SingletonBlockingQueue()
+        self.outputFrame = NonBlockingTaskSingleton()
         self.presence_status = 0
         self.presence_status_changed = False
         self.last_motion_ts = datetime.datetime.now()
@@ -197,9 +199,8 @@ class PresenceDetector():
         self.active_video_feeds += 1
         # loop over frames from the output stream
         try:
-            while True:
-                if self.config.video_feed_fps > 0:
-                    time.sleep(1 / min(int(self.vs.camera.framerate), self.config.video_feed_fps))
+            limiter = FrameLimiter(min(int(self.vs.camera.framerate), self.config.video_feed_fps))
+            while limiter.limit():
                 outputFrame = self.outputFrame.read()
                 # check if the output frame is available, otherwise skip
                 # the iteration of the loop

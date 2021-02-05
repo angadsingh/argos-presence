@@ -1,0 +1,6 @@
+.idea
+.git
+**/*.pyc
+**/__pycache__
+**/.DS_Store
+configs/config.py
