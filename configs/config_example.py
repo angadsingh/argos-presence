@@ -1,3 +1,6 @@
+from lib.constants import InputMode
+
+
 class Config:
     def __init__(self):
         # whether to show fps in the output video
@@ -63,6 +66,11 @@ class Config:
         # folder where motion frames should be saved. they are saved as timestamped jpegs
         self.md_first_frame_write_path = "/home/pi/motion_frames"
 
+        # blur the output video wherever there is motion
+        # useful to share videos of argos in action or even
+        # if you are privacy conscious at home
+        self.md_blur_output_frame = False
+
         # the fps to limit the output video feed to.
         # not necessary since it is automatically limited to the speed of the motion detector
         self.video_feed_fps = 5
@@ -127,3 +135,11 @@ class Config:
         # if you have privacy concerns about your presence camera video/image feed
         # then you can disable the output frame
         self.output_frame_enabled = True
+
+        # supports RTMP, picamera and local video file
+        # e.g. for an rtmp stream:
+        # self.input_mode = InputMode.RTMP_STREAM
+        # self.rtmp_stream_url = "rtmp://192.168.1.11:43339/live/main_door"
+        self.input_mode = InputMode.PI_CAM
+        # make sure to set the format to bgr for the picam input mode
+        self.picam_format = "bgr"

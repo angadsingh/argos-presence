@@ -1,8 +1,9 @@
 import logging
 import sys
 
+from lib.constants import InputMode
 from detection.motion_detector import SimpleMotionDetector
-from input.picamstream import PiVideoStream
+from input import setup_input_stream
 
 from lib.framelimiter import FrameLimiter
 from lib.task_queue import NonBlockingTaskSingleton
@@ -54,12 +55,13 @@ class PresenceDetector():
             self.mqtt_heartbeat_timer = RepeatedTimer(self.config.mqtt_heartbeat_secs, self.mqtt_heartbeat)
 
     def set_cam_config(self):
-        for key, val in vars(self.camconfig).items():
-            setattr(self.vs.camera, key, val)
+        if self.config.input_mode == InputMode.PI_CAM:
+            for key, val in vars(self.camconfig).items():
+                setattr(self.vs.camera, key, val)
 
     def start(self):
         # start the pi video stream thread
-        self.vs = PiVideoStream(format='bgr').start()
+        self.vs = setup_input_stream(self.config)
         self.set_cam_config()
 
         # start a thread that will perform motion detection
@@ -199,7 +201,11 @@ class PresenceDetector():
         self.active_video_feeds += 1
         # loop over frames from the output stream
         try:
-            limiter = FrameLimiter(min(int(self.vs.camera.framerate), self.config.video_feed_fps))
+            frame_rate = self.config.video_feed_fps
+            if self.config.input_mode == InputMode.PI_CAM:
+                frame_rate = min(int(self.vs.camera.framerate), self.config.video_feed_fps)
+            limiter = FrameLimiter(frame_rate)
+
             while limiter.limit():
                 outputFrame = self.outputFrame.read()
                 # check if the output frame is available, otherwise skip
@@ -274,61 +280,62 @@ class PresenceDetectorView(FlaskView):
 
     @route('/camconfig')
     def camconfig(self):
-        self.pd.vs.camera.exposure_mode = request.args.get('exposure_mode', self.pd.vs.camera.exposure_mode)
-        self.pd.vs.camera.framerate = int(request.args.get('framerate', self.pd.vs.camera.framerate))
-        self.pd.vs.camera.iso = int(request.args.get('iso', self.pd.vs.camera.iso))
-        self.pd.vs.camera.meter_mode = request.args.get('meter_mode', self.pd.vs.camera.meter_mode)
+        if self.config.input_mode == InputMode.PI_CAM:
+            self.pd.vs.camera.exposure_mode = request.args.get('exposure_mode', self.pd.vs.camera.exposure_mode)
+            self.pd.vs.camera.framerate = int(request.args.get('framerate', self.pd.vs.camera.framerate))
+            self.pd.vs.camera.iso = int(request.args.get('iso', self.pd.vs.camera.iso))
+            self.pd.vs.camera.meter_mode = request.args.get('meter_mode', self.pd.vs.camera.meter_mode)
 
-        red, blue = self.pd.vs.camera.awb_gains
-        red = float(request.args.get('awb_gains_red', red))
-        blue = float(request.args.get('awb_gains_blue', blue))
-        self.pd.vs.camera.awb_gains = (red, blue)
+            red, blue = self.pd.vs.camera.awb_gains
+            red = float(request.args.get('awb_gains_red', red))
+            blue = float(request.args.get('awb_gains_blue', blue))
+            self.pd.vs.camera.awb_gains = (red, blue)
 
-        self.pd.vs.camera.awb_mode = request.args.get('awb_mode', self.pd.vs.camera.awb_mode)
+            self.pd.vs.camera.awb_mode = request.args.get('awb_mode', self.pd.vs.camera.awb_mode)
 
-        self.pd.vs.camera.brightness = int(request.args.get('brightness', self.pd.vs.camera.brightness))
-        self.pd.vs.camera.contrast = int(request.args.get('contrast', self.pd.vs.camera.contrast))
-        self.pd.vs.camera.drc_strength = request.args.get('drc_strength', self.pd.vs.camera.drc_strength)
-        self.pd.vs.camera.exposure_compensation = int(
-            request.args.get('exposure_compensation', self.pd.vs.camera.exposure_compensation))
-        self.pd.vs.camera.image_denoise = bool(request.args.get('image_denoise', self.pd.vs.camera.image_denoise))
+            self.pd.vs.camera.brightness = int(request.args.get('brightness', self.pd.vs.camera.brightness))
+            self.pd.vs.camera.contrast = int(request.args.get('contrast', self.pd.vs.camera.contrast))
+            self.pd.vs.camera.drc_strength = request.args.get('drc_strength', self.pd.vs.camera.drc_strength)
+            self.pd.vs.camera.exposure_compensation = int(
+                request.args.get('exposure_compensation', self.pd.vs.camera.exposure_compensation))
+            self.pd.vs.camera.image_denoise = bool(request.args.get('image_denoise', self.pd.vs.camera.image_denoise))
 
-        x, y = self.pd.vs.camera.resolution
-        x = request.args.get('resolution_x', x)
-        y = request.args.get('resolution_y', y)
-        self.pd.vs.camera.resolution = (x, y)
+            x, y = self.pd.vs.camera.resolution
+            x = request.args.get('resolution_x', x)
+            y = request.args.get('resolution_y', y)
+            self.pd.vs.camera.resolution = (x, y)
 
-        self.pd.vs.camera.saturation = int(request.args.get('saturation', self.pd.vs.camera.saturation))
-        self.pd.vs.camera.sharpness = int(request.args.get('sharpness', self.pd.vs.camera.sharpness))
-        self.pd.vs.camera.shutter_speed = int(request.args.get('shutter_speed', self.pd.vs.camera.shutter_speed))
-        self.pd.vs.camera.video_denoise = bool(request.args.get('video_denoise', self.pd.vs.camera.video_denoise))
-        self.pd.vs.camera.video_stabilization = bool(
-            request.args.get('video_stabilization', self.pd.vs.camera.video_stabilization))
+            self.pd.vs.camera.saturation = int(request.args.get('saturation', self.pd.vs.camera.saturation))
+            self.pd.vs.camera.sharpness = int(request.args.get('sharpness', self.pd.vs.camera.sharpness))
+            self.pd.vs.camera.shutter_speed = int(request.args.get('shutter_speed', self.pd.vs.camera.shutter_speed))
+            self.pd.vs.camera.video_denoise = bool(request.args.get('video_denoise', self.pd.vs.camera.video_denoise))
+            self.pd.vs.camera.video_stabilization = bool(
+                request.args.get('video_stabilization', self.pd.vs.camera.video_stabilization))
 
-        cam_conf = {
-            'exposure_mode': self.pd.vs.camera.exposure_mode,
-            'framerate': float(self.pd.vs.camera.framerate),
-            'iso': self.pd.vs.camera.iso,
-            'meter_mode': self.pd.vs.camera.meter_mode,
-            'analog_gain': float(self.pd.vs.camera.analog_gain),
-            'digital_gain': float(self.pd.vs.camera.digital_gain),
-            'awb_gains': (red, blue),
-            'awb_mode': self.pd.vs.camera.awb_mode,
-            'brightness': self.pd.vs.camera.brightness,
-            'contrast': self.pd.vs.camera.contrast,
-            'drc_strength': self.pd.vs.camera.drc_strength,
-            'exposure_compensation': self.pd.vs.camera.exposure_compensation,
-            'exposure_speed': self.pd.vs.camera.exposure_speed,
-            'image_denoise': self.pd.vs.camera.image_denoise,
-            'resolution': self.pd.vs.camera.resolution,
-            'saturation': self.pd.vs.camera.saturation,
-            'sharpness': self.pd.vs.camera.sharpness,
-            'shutter_speed': self.pd.vs.camera.shutter_speed,
-            'video_denoise': self.pd.vs.camera.video_denoise,
-            'video_stabilization': self.pd.vs.camera.video_stabilization
-        }
+            cam_conf = {
+                'exposure_mode': self.pd.vs.camera.exposure_mode,
+                'framerate': float(self.pd.vs.camera.framerate),
+                'iso': self.pd.vs.camera.iso,
+                'meter_mode': self.pd.vs.camera.meter_mode,
+                'analog_gain': float(self.pd.vs.camera.analog_gain),
+                'digital_gain': float(self.pd.vs.camera.digital_gain),
+                'awb_gains': (red, blue),
+                'awb_mode': self.pd.vs.camera.awb_mode,
+                'brightness': self.pd.vs.camera.brightness,
+                'contrast': self.pd.vs.camera.contrast,
+                'drc_strength': self.pd.vs.camera.drc_strength,
+                'exposure_compensation': self.pd.vs.camera.exposure_compensation,
+                'exposure_speed': self.pd.vs.camera.exposure_speed,
+                'image_denoise': self.pd.vs.camera.image_denoise,
+                'resolution': self.pd.vs.camera.resolution,
+                'saturation': self.pd.vs.camera.saturation,
+                'sharpness': self.pd.vs.camera.sharpness,
+                'shutter_speed': self.pd.vs.camera.shutter_speed,
+                'video_denoise': self.pd.vs.camera.video_denoise,
+                'video_stabilization': self.pd.vs.camera.video_stabilization
+            }
 
-        return jsonify(cam_conf)
+            return jsonify(cam_conf)
 
     @route("/image")
     def image(self):
