@@ -276,7 +276,7 @@ cards:
 
 it will look like this:
 
-<img src="https://github.com/angadsingh/argos-presence/raw/main/argos-config-ha-card.jpg" width="600">
+<img src="https://github.com/angadsingh/argos-presence/raw/main/resources/argos-config-ha-card.jpg" width="600">
 
 lastly, you can add the argo-presence video feed as a camera in home assistant! doing this you can then use a lovelace picture glance card to see your presence detector (doing motion detector and tensorflow based person detection) in action, and even record it's footage using motionEye, etc.
 
