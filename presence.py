@@ -6,6 +6,7 @@ from detection.motion_detector import SimpleMotionDetector
 from input import setup_input_stream
 
 from lib.framelimiter import FrameLimiter
+from lib.ha_webhook import HaWebHook
 from lib.task_queue import NonBlockingTaskSingleton
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -43,16 +44,24 @@ class PresenceDetector():
         self.config = config
         self.camconfig = camconfig
         self.outputFrame = NonBlockingTaskSingleton()
+        self.current_log_line = ""
         self.presence_status = 0
         self.presence_status_changed = False
         self.last_motion_ts = datetime.datetime.now()
         self.last_nonmotion_ts = datetime.datetime.now()
         self.active_video_feeds = 0
-        self.mqtt = HaMQTT(self.config.mqtt_host, self.config.mqtt_port,
-                           self.config.mqtt_username, self.config.mqtt_password)
+
         self.stopped = False
         if config.send_mqtt:
+            self.mqtt = HaMQTT(self.config.mqtt_host, self.config.mqtt_port,
+                               self.config.mqtt_username, self.config.mqtt_password)
             self.mqtt_heartbeat_timer = RepeatedTimer(self.config.mqtt_heartbeat_secs, self.mqtt_heartbeat)
+        if config.send_webhook:
+            self.ha_webhook = HaWebHook(self.config.ha_webhook_url)
+
+    def log(self, msg):
+        log.info(msg)
+        self.current_log_line = msg
 
     def set_cam_config(self):
         if self.config.input_mode == InputMode.PI_CAM:
@@ -73,7 +82,8 @@ class PresenceDetector():
     def cleanup(self):
         self.stopped = True
         self.md_thread.join()
-        self.mqtt_heartbeat_timer.stop()
+        if config.send_mqtt:
+            self.mqtt_heartbeat_timer.stop()
         self.vs.stop()
 
     def mqtt_heartbeat(self):
@@ -86,6 +96,9 @@ class PresenceDetector():
         det_boxes = None
         url = self.config.argos_service_api_url + '?threshold=%s' % str(self.config.argos_detection_threshold)
         if self.config.argos_detection_nmask:
+            if self.config.argos_show_detection_masks:
+                nminX, nminY, nmaxX, nmaxY = self.config.argos_detection_nmask
+                cv2.rectangle(frame, (nminX, nminY), (nmaxX, nmaxY), (128, 0, 128), 1)
             enc_mask = base64.urlsafe_b64encode(json.dumps(self.config.argos_detection_nmask).encode()).decode()
             url = url + '&nmask=%s' % enc_mask
         try:
@@ -114,14 +127,14 @@ class PresenceDetector():
                     if self.config.argos_person_detection_enabled:
                         # do person detection here and dont reset bg (let motion come)
                         # only activate to motion state if person found
-                        log.info("warmUp: detecting person (%d)" % (
+                        self.log("warmUp: detecting person (%d)" % (
                                 datetime.datetime.now() - self.last_nonmotion_ts).total_seconds())
                         person_box = self.detect_person(frame)
                         if person_box:
-                            log.info("warmUp aborted: person detected")
+                            self.log("warmUp aborted: person detected")
                             self.presence_status = 1
                             self.presence_status_changed = True
-                            log.info("presenceStatus: %d" % self.presence_status)
+                            self.log("presenceStatus: %d" % self.presence_status)
                     else:
                         # reset the background model to account for motion
                         # following a status change to non motion (e.g. lighting going off)
@@ -129,7 +142,7 @@ class PresenceDetector():
                 else:
                     self.presence_status = 1
                     self.presence_status_changed = True
-                    log.info("presenceStatus: %d" % self.presence_status)
+                    self.log("presenceStatus: %d" % self.presence_status)
                     if self.config.md_first_frame_write:
                         image_path = "%s/motion_frame_%s.jpg" % (
                         self.config.md_first_frame_write_path, datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S"))
@@ -143,13 +156,13 @@ class PresenceDetector():
                     self.presence_status = 0
                     self.presence_status_changed = True
                     self.last_nonmotion_ts = datetime.datetime.now()
-                    log.info("presenceStatus: %d" % self.presence_status)
+                    self.log("presenceStatus: %d" % self.presence_status)
                 else:
                     if self.config.argos_person_detection_enabled:
                         # do person detection here
                         # if person found, update last_motion_ts
                         if total_frames % self.config.argos_detection_frequency_frames == 0:
-                            log.info("coolDown: detecting person (%d)" % (
+                            self.log("coolDown: detecting person (%d)" % (
                                     datetime.datetime.now() - self.last_motion_ts).total_seconds())
                             person_box = self.detect_person(frame)
                             if person_box:
@@ -158,6 +171,8 @@ class PresenceDetector():
         if self.presence_status_changed:
             if self.config.send_mqtt:
                 self.mqtt.publish(self.config.mqtt_state_topic, self.presence_status)
+            if self.config.send_webhook:
+                self.ha_webhook.send(str(self.presence_status))
 
         return person_box
 
@@ -179,6 +194,7 @@ class PresenceDetector():
 
             # detect motion in the image
             (frame, crop, motion_outside) = md.detect(frame)
+            md.show_masks(frame)
             person_box = self.detect_presence(frame, crop, total)
             if person_box:
                 minx, miny, maxx, maxy, label, accuracy = person_box
@@ -191,8 +207,15 @@ class PresenceDetector():
 
             # grab the current timestamp and draw it on the frame
             if self.config.show_fps:
-                cv2.putText(frame, "%.2f fps" % fps.fps, (10, frame.shape[0] - 10),
+                cv2.putText(frame, "%.2f fps" % fps.fps, (frame.shape[1]-50, 12),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 255), 1)
+            if self.config.show_status:
+                cv2.putText(frame, f"presence: {self.presence_status}", (5, 12),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0), 1)
+                if self.current_log_line:
+                    cv2.putText(frame, self.current_log_line, (5, frame.shape[0] - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 0, 0), 1)
+                    self.current_log_line = ""
 
             if self.config.output_frame_enabled:
                 self.outputFrame.enqueue(frame.copy())
@@ -238,11 +261,11 @@ class PresenceDetectorView(FlaskView):
     def status(self):
         return jsonify(
             {
-                'active_video_feeds': self.active_video_feeds,
-                'motion_status': self.motion_status,
-                'motion_status_changed': self.motion_status_changed,
-                'last_motion_ts': self.last_motion_ts,
-                'last_nonmotion_ts': self.last_nonmotion_ts
+                'active_video_feeds': self.pd.active_video_feeds,
+                'presence_status': self.pd.presence_status,
+                'presence_status_changed': self.pd.presence_status_changed,
+                'last_motion_ts': self.pd.last_motion_ts,
+                'last_nonmotion_ts': self.pd.last_nonmotion_ts
             }
         )
 
@@ -263,6 +286,7 @@ class PresenceDetectorView(FlaskView):
         self.config.md_reset_bg_model = bool(request.args.get('md_reset_bg_model', self.config.md_reset_bg_model))
         self.config.video_feed_fps = int(request.args.get('video_feed_fps', self.config.video_feed_fps))
         self.config.send_mqtt = bool(request.args.get('send_mqtt', self.config.send_mqtt))
+        self.config.send_webhook = bool(request.args.get('send_webhook', self.config.send_webhook))
         self.config.fps_print_frames = int(request.args.get('fps_print_frames', self.config.fps_print_frames))
         self.config.mqtt_heartbeat_secs = int(request.args.get('mqtt_heartbeat_secs', self.config.mqtt_heartbeat_secs))
         self.config.presence_cooldown_secs = int(

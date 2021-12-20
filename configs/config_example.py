@@ -5,6 +5,8 @@ class Config:
     def __init__(self):
         # whether to show fps in the output video
         self.show_fps = True
+        # whether to show current log line and presence status
+        self.show_status = True
 
         # prints the current motion detection fps at this frequency of frames
         self.fps_print_frames = 10000
@@ -90,6 +92,11 @@ class Config:
         # topic where presence state changes are sent
         self.mqtt_state_topic = 'home-assistant/picam-object-presence/sensor1'
 
+        # whether to enable webhook notifications to HA
+        self.send_webhook = True
+        # HA webhook url
+        self.ha_webhook_url = "https://<your-hass>:8123/api/webhook/argos_presence_detection?presence={}"
+
         # the number of seconds for the coolDown period
         # coolDown period: When motion tries to switch presenceStatus from on to off,
         # we have a coolDown period where the argos object detection service is called
@@ -127,6 +134,7 @@ class Config:
 
         # negative mask to apply to image for the object detector
         self.argos_detection_nmask = (190, 0, 260, 65)
+        self.argos_show_detection_masks = False
 
         # this allows throttling the calls to the argos service
         # do person detections only at this frame frequency

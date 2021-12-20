@@ -7,3 +7,4 @@ Flask-Classful @ git+https://github.com/teracyhq/flask-classful.git@3bbab31705b4
 paho-mqtt
 AppMetrics
 termcolor
+retrying
