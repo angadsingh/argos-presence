@@ -52,6 +52,12 @@ class PresenceDetector():
         self.active_video_feeds = 0
 
         self.stopped = False
+        if config.argos_detection_nmask_template:
+            self.nmask_detection_template = cv2.imread(config.argos_detection_nmask_template, 0)
+            self.argos_detection_nmask = None
+        elif self.config.argos_detection_nmask:
+            self.argos_detection_nmask = self.config.argos_detection_nmask
+
         if config.send_mqtt:
             self.mqtt = HaMQTT(self.config.mqtt_host, self.config.mqtt_port,
                                self.config.mqtt_username, self.config.mqtt_password)
@@ -89,17 +95,35 @@ class PresenceDetector():
     def mqtt_heartbeat(self):
         self.mqtt.publish(self.config.mqtt_state_topic, self.presence_status)
 
+    def update_argos_nmask(self, frame):
+        img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        try:
+            res = cv2.matchTemplate(img, self.nmask_detection_template, cv2.TM_CCOEFF_NORMED)
+        except Exception as e:
+            log.error("could not detect argos nmask", e)
+        else:
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+            w, h = self.nmask_detection_template.shape[::-1]
+            top_left = max_loc
+            bottom_right = (top_left[0] + w, top_left[1] + h)
+            self.argos_detection_nmask = (top_left[0]-10, top_left[1]-10, bottom_right[0]+10, bottom_right[1]+10)
+
+            if self.config.argos_show_detection_masks:
+                nminX, nminY, nmaxX, nmaxY = self.argos_detection_nmask
+                cv2.rectangle(frame, (nminX, nminY), (nmaxX, nmaxY), (128, 0, 128), 1)
+            self.log(f"argos person detection nmask: {self.argos_detection_nmask}")
+
     def detect_person(self, frame):
         content_type = 'image/jpeg'
         is_success, buffer = cv2.imencode(".jpg", frame)
         img_bytes = io.BytesIO(buffer)
         det_boxes = None
         url = self.config.argos_service_api_url + '?threshold=%s' % str(self.config.argos_detection_threshold)
-        if self.config.argos_detection_nmask:
+        if self.argos_detection_nmask:
             if self.config.argos_show_detection_masks:
-                nminX, nminY, nmaxX, nmaxY = self.config.argos_detection_nmask
+                nminX, nminY, nmaxX, nmaxY = self.argos_detection_nmask
                 cv2.rectangle(frame, (nminX, nminY), (nmaxX, nmaxY), (128, 0, 128), 1)
-            enc_mask = base64.urlsafe_b64encode(json.dumps(self.config.argos_detection_nmask).encode()).decode()
+            enc_mask = base64.urlsafe_b64encode(json.dumps(self.argos_detection_nmask).encode()).decode()
             url = url + '&nmask=%s' % enc_mask
         try:
             det_boxes = requests.post(url, files={'file': ('presence_detector_%s' % int(time.time()),
@@ -217,6 +241,11 @@ class PresenceDetector():
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 0, 0), 1)
                     self.current_log_line = ""
 
+            # update argos person detection nmask
+            if self.config.argos_detection_nmask_template:
+                if total % self.config.argos_detection_nmask_template_update_freq_frames == 0:
+                    self.update_argos_nmask(frame)
+
             if self.config.output_frame_enabled:
                 self.outputFrame.enqueue(frame.copy())
 
@@ -265,7 +294,8 @@ class PresenceDetectorView(FlaskView):
                 'presence_status': self.pd.presence_status,
                 'presence_status_changed': self.pd.presence_status_changed,
                 'last_motion_ts': self.pd.last_motion_ts,
-                'last_nonmotion_ts': self.pd.last_nonmotion_ts
+                'last_nonmotion_ts': self.pd.last_nonmotion_ts,
+                'argos_detection_nmask': self.pd.argos_detection_nmask
             }
         )
 

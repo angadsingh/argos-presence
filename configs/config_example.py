@@ -134,6 +134,11 @@ class Config:
 
         # negative mask to apply to image for the object detector
         self.argos_detection_nmask = (190, 0, 260, 65)
+        # alternatively you can provide an image mask. argos-presence will
+        # find it in the video feed and exclude that area from detecting people
+        # useful for avoiding photo frames and wall portraits to cause false alarms :)
+        self.argos_detection_nmask_template = "configs/nmask_template.jpg"
+        self.argos_detection_nmask_template_update_freq_frames = 300
         self.argos_show_detection_masks = False
 
         # this allows throttling the calls to the argos service
